@@ -1,63 +1,77 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   get_new_line.c                                     :+:      :+:    :+:   */
+/*   get_next_line.c                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: frivaton <frivaton@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2019/05/03 09:02:28 by frivaton          #+#    #+#             */
-/*   Updated: 2019/05/03 09:06:36 by frivaton         ###   ########.fr       */
+/*   Created: 2019/05/14 08:12:55 by frivaton          #+#    #+#             */
+/*   Updated: 2019/05/14 08:46:27 by frivaton         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "libft/libft.h"
 #include "get_next_line.h"
 
-static int        get_read(const int fd, char **str)
-{
-    int        ret;
-    char    buf[BUFF_SIZE + 1];
-    char    *temp;
+static char *g_str[MAX_FD];
 
-    ft_bzero(buf, BUFF_SIZE);
-    while ((ret = read(fd, buf, BUFF_SIZE)) > 0)
-    {
-        buf[ret] = '\0';
-        temp = *str;
-        *str = ft_strjoin(temp, buf);
-        free(temp);
-        ft_bzero(buf, BUFF_SIZE);
-        if (ft_strchr(*str, '\n') != NULL)
-            return (1);
-    }
-    return (ret);
+static int			get_read(const int fd)
+{
+	int				ret;
+	char			buf[BUFF_SIZE + 1];
+	char			*temp;
+
+	ft_bzero(buf, BUFF_SIZE);
+	while ((ret = read(fd, buf, BUFF_SIZE)) > 0)
+	{
+		buf[ret] = '\0';
+		temp = g_str[fd];
+		g_str[fd] = ft_strjoin(temp, buf);
+		free(temp);
+		ft_bzero(buf, BUFF_SIZE);
+		if (ft_strchr(g_str[fd], '\n') != NULL)
+			return (1);
+	}
+	return (ret);
 }
 
-int                get_next_line(const int fd, char **line)
+static int			get_sub(const int fd, char **line)
 {
-    static char    *str[MAX_FD];
-    char        *temp;
-    int            ret;
-    int            i;
+	char			*temp;
+	int				i;
 
-    i = 0;
-    if (fd < 0 || line == NULL || fd > MAX_FD || BUFF_SIZE <= 0)
-        return (-1);
-    if (str[fd] == NULL)
-        str[fd] = ft_strdup("");
-    if ((ret = get_read(fd, &str[fd])) < 0)
-        return (-1);
-    if (ft_strchr(str[fd], '\n') != NULL)
-    {
-        while (str[fd][i] && str[fd][i] != '\n')
-            i++;
-        *line = ft_strsub(str[fd], 0, i);
-        temp = str[fd];
-        str[fd] = ft_strsub(temp, i + 1, ft_strlen(temp) - i - 1);
-        free(temp);
-        return (1);
-    }
-    *line = str[fd];
-    str[fd] = NULL;
-    return (ret == 0 && **line == 0) ? 0 : 1;
+	i = 0;
+	while (g_str[fd][i] && g_str[fd][i] != '\n')
+		i++;
+	if ((*line = ft_strsub(g_str[fd], 0, i)) == NULL)
+		return (-1);
+	temp = g_str[fd];
+	if ((g_str[fd] = ft_strsub(temp, i + 1, ft_strlen(temp) - i - 1)) == NULL)
+	{
+		free(temp);
+		return (-1);
+	}
+	free(temp);
+	return (1);
+}
+
+int					get_next_line(const int fd, char **line)
+{
+	int				ret;
+
+	if (fd < 0 || line == NULL || fd > MAX_FD || BUFF_SIZE <= 0)
+		return (-1);
+	if (g_str[fd] == NULL)
+		if ((g_str[fd] = ft_strdup("")) == NULL)
+			return (-1);
+	if ((ret = get_read(fd)) < 0)
+		return (-1);
+	if (ft_strchr(g_str[fd], '\n') != NULL)
+	{
+		ret = get_sub(fd, line);
+		return (ret);
+	}
+	*line = g_str[fd];
+	g_str[fd] = NULL;
+	return (ret == 0 && **line == 0) ? 0 : 1;
 }
